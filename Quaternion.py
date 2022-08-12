@@ -2,7 +2,19 @@
 # Angles in radians unless noted otherwise
 
 import math
+import time
 import numpy as np
+
+# Decorative function that measures time of functions
+def time_to_compute(function):
+    def wrapper(*args, **kwargs):
+      start_time = time.time()
+      func = function(*args, **kwargs)
+      end_time = time.time()
+      print(f"{function.__name__} ran in {end_time - start_time} seconds")
+      return func
+  
+    return wrapper
 
 class Quaternion:
 # **************************************************
@@ -135,6 +147,7 @@ class Quaternion:
     return mag
 
   # Calculate and return Euler Angles psi, theta, phi
+  @time_to_compute
   def getEulerAngles(self):
     normalized_self = self.getNormalize()
     psi = math.atan2(2 * normalized_self.q[1] * normalized_self.q[2] - 2 * normalized_self.q[0] * normalized_self.q[3], 2 * normalized_self.q[0] * normalized_self.q[0] + 2 * normalized_self.q[1] * normalized_self.q[1] - 1)
@@ -143,6 +156,7 @@ class Quaternion:
     return psi, theta, phi
   
   # Calculate and return rotation matrix
+  @time_to_compute
   def getRotationMatrix(self):
     normalized_self = self.getNormalize()
     rot = np.zeros((3,3))
@@ -150,7 +164,7 @@ class Quaternion:
     rot[1] = np.array([2 * (normalized_self.q[1] * normalized_self.q[2] - normalized_self.q[0] * normalized_self.q[3]), 2 * normalized_self.q[0] * normalized_self.q[0] - 1 + 2 * normalized_self.q[2] * normalized_self.q[2], 2 * (normalized_self.q[2] * normalized_self.q[3] + normalized_self.q[0] * normalized_self.q[1])])
     rot[2] = np.array([2 * (normalized_self.q[1] * normalized_self.q[3] + normalized_self.q[0] * normalized_self.q[2]), 2 * (normalized_self.q[2] * normalized_self.q[3] - normalized_self.q[0] * normalized_self.q[1]), 2 * normalized_self.q[0] * normalized_self.q[0] - 1 + 2 * normalized_self.q[3] * normalized_self.q[3]])
     return rot.T
-  
+
   # Returns conjugate of Quaternion
   def getConjugate(self):
     q_conj0 = self.q[0]
@@ -160,6 +174,7 @@ class Quaternion:
     return Quaternion(q_conj0, q_conj1, q_conj2, q_conj3)
 
   # Rotates vector based on conjugate
+  @time_to_compute
   def rotateVector(self, vector):
     if not isinstance(vector, np.ndarray):
       raise TypeError("Vector not type numpy.ndarray")
@@ -171,8 +186,10 @@ class Quaternion:
     rotVector = np.array(quant_rotVector.q[1:4])
     return rotVector
 
-# demo main function
-if __name__ == "__main__":
+  
+
+
+def main():
   print("*" * 50)
   
   vec = np.array([1, 2, 3])
@@ -207,5 +224,8 @@ if __name__ == "__main__":
   print("Vector = {}".format(vec))
   print("Rotated Vector = {}".format(rotVec))
   print("Rotated Vector (using Rotation Matrix) = {}".format(rotVec_Matrix))
-  
   print("*" * 50)
+
+# demo main function
+if __name__ == "__main__":
+  main()

@@ -13,7 +13,6 @@ class MadgwickFilter:
   # INPUTS: N/A
   # OUTPUTS: MadgwickFilter object
   #
-  # 
   # Add parameters
   def __init__(self, param = {}):
     self.w_s = Quaternion() # Angular rate
@@ -25,39 +24,31 @@ class MadgwickFilter:
     
     self.orientation = Quaternion()
 
-  def update(self, wx_raw, wy_raw, wz_raw, ax_raw, ay_raw, az_raw, mx_raw, my_raw, mz_raw, delta_t):
+  def update(self, wx_raw, wy_raw, wz_raw, ax_raw, ay_raw, az_raw, mx_raw, my_raw, mz_raw, alpha=1000, delta_t = .01):
     # Update Quaternion variables with raw values
     self.w_s.updateQ(0, wx_raw, wy_raw, wz_raw)
     self.a_s.updateQ(0, ax_raw, ay_raw, az_raw)
     self.m_s.updateQ(0, mx_raw, my_raw, mz_raw)
 
-    orientation_derivative = .5 * self.orientation * self.w_s
-    self.orientation = self.orientation + orientation_derivative * delta_t
+    gyro_derivative = .5 * self.orientation * self.w_s
+    gyro_measurement_error_mag = 2 # UPDATE VALUE
+    dir_of_error = self.calcDirOfError(alpha)
 
-    # Calculate objective function and its Jacobian for gravity orientation
-    obj_f_grav0 = 2 * (self.orientation[1] * self.orientation[3] - self.orientation[0] * self.orientation[2]) - self.a_s[1]
-    obj_f_grav1 = 2 * (self.orientation[0] * self.orientation[1] + self.orientation[2] * self.orientation[3]) - self.a_s[2]
-    obj_f_grav2 = 2 * ((1/2) - self.orientation[1] * self.orientation[1] - self.orientation[2] * self.orientation[2]) - self.a_s[3]
-    obj_f = np.array(obj_f_grav0, obj_f_grav1, obj_f_grav2).T
+    ROC_of_orientation = gyro_derivative - gyro_measurement_error_mag * dir_of_error
 
-    jacobian_f_grav0 = np.array([-2 * self.orientation[2], 2 * self.orientation[3], -2 * self.orientation[0], 2 * self.orientation[1]])
-    jacobian_f_grav1 = np.array([2 * self.orientation[1], 2 * self.orientation[0], 2 * self.orientation[3], 2 * self.orientation[2]])
-    jacobian_f_grav2 = np.array([0, -4 * self.orientation[1], -4 * self.orientation[2], 0])
-    jacobian_f = np.array(jacobian_f_grav0, jacobian_f_grav1, jacobian_f_grav2)
+    self.orientation += ROC_of_orientation * delta_t
+    self.orientation.normalize()
 
-    obj_f_grad = np.matmul(jacobian_f.T, obj_f)
-    obj_f_grad_magnitude = 
-
-
-
-  def updateMag(self, wx_raw, wy_raw, wz_raw, ax_raw, ay_raw, az_raw, mx_raw, my_raw, mz_raw, delta_t):
-    # Update Quaternion variables with raw values
-    self.w_s.updateQ(0, wx_raw, wy_raw, wz_raw)
-    self.a_s.updateQ(0, ax_raw, ay_raw, az_raw)
-    self.m_s.updateQ(0, mx_raw, my_raw, mz_raw)
-
-    orientation_derivative = .5 * self.orientation * self.w_s
-    self.orientation = self.orientation + orientation_derivative * delta_t
+  # 
+  # calcDirOfError
+  # Calculates direction of error from vector observations (gravitational field + magnetic field)
+  # 
+  # INPUT: delta_t = sampling period
+  # OUTPUT: quaternion representing orientation calculated from vector observation
+  #
+  def calcDirOfError(self, alpha = 1000):
+    if (alpha <= 1):
+      raise ValueError(f"Alpha should be larger than 1 (Current: {alpha}")
 
     # Calculate objective function and its Jacobian for gravity orientation
     obj_f_grav0 = 2 * (self.orientation[1] * self.orientation[3] - self.orientation[0] * self.orientation[2]) - self.a_s[1]
@@ -81,8 +72,16 @@ class MadgwickFilter:
     jacobian_f_mag2 = np.array([2 * self.b_e[1] * self.orientation[2], 2 * self.b_e[1] * self.orientation[3] - 4 * self.b_e[3] * self.orientation[1], 2 * self.b_e[1] * self.orientation[0] - 4 * self.b_e[3] * self.orientation[2], 2 * self.b_e[1] * self.orientation[1]])
     jacobian_f_mag = np.array(jacobian_f_mag0, jacobian_f_mag1, jacobian_f_mag2)
 
-    obj_f = np.array([obj_f_grav, obj_f_mag]).T
-    jacobian_f = np.array([jacobian_f_grav, jacobian_f_mag]).T
+    obj_f = np.array(obj_f_grav, obj_f_mag).T
+    jacobian_f = np.array(jacobian_f_grav, jacobian_f_mag).T
+
+    obj_f_grad = np.matmul(jacobian_f.T, obj_f)
+    obj_f_grad_mag = np.linalg.norm(obj_f_grad)
+
+    return obj_f_grad / obj_f_grad_mag
+
+def main():
+  filter = MadgwickFilter()
 
 if __name__ == "__main__":
-  filter = MadgwickFilter()
+  main()

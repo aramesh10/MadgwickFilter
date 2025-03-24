@@ -1,5 +1,5 @@
 # MadgwickFilter
-Python implementation of Madgwick Filter (Work in progress)
+Python implementation of Madgwick Filter
 
 ## Resources
 [Reference paper](https://x-io.co.uk/downloads/madgwick_internal_report.pdf)
